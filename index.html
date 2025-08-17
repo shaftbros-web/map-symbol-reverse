@@ -1,123 +1,381 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>地図記号ドリル（逆バージョン）</title>
-<style>
-  body { font-family: sans-serif; text-align: center; background: #0b1220; color: white; }
-  #wrap { max-width: 600px; margin: auto; }
-  #question { font-size: 22px; margin: 20px; }
-  .options { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-  .option {
-    width: 100px; height: 100px; border: 2px solid #ccc; border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    background: white; cursor: pointer;
-  }
-  .judge {
-    font-size: 80px; font-weight: bold; position: absolute; top: 10%; left: 50%;
-    transform: translateX(-50%); display: none; z-index: 10;
-  }
-  #settings { margin: 15px; font-size: 14px; }
-  label { margin: 0 10px; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>地図記号4択ドリル — 逆バージョン（名称→記号）</title>
+  <meta name="description" content="名称を表示し、記号（SVG）を4択から選ぶ逆バージョン。誤答復習、正解必須モード、ローカルランキング対応。" />
+  <style>
+    :root{--bg:#0b0f14;--panel:#0f1520;--ink:#e6edf3;--muted:#9aa4b2;--ok:#16a34a;--ng:#ef4444}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif}
+    body{min-height:100dvh;display:flex;flex-direction:column}
+    header,footer{background:var(--panel);padding:8px 10px;font-size:14px;text-align:center}
+    main{flex:1;display:grid;place-items:center;padding:10px}
+    .wrap{width:100%;max-width:620px;display:grid;gap:10px}
+
+    /* 見た目は元版準拠：白背景パネルで視認性UP */
+    .symbolBox{
+      position:relative;
+      display:grid;place-items:center;
+      height:clamp(180px,36vh,320px);
+      border:1px solid #cbd5e1;border-radius:16px;
+      background:#fff;color:#111827;
+      overflow:hidden;
+      padding:10px;
+      text-align:center;
+    }
+    /* 逆版では問題テキスト（名称）を大きく表示 */
+    #qText{font-size:clamp(22px,4.6vh,30px);font-weight:800;letter-spacing:.02em}
+
+    .bar{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted)}
+    .tag{font-size:11px;color:#a3e635;background:#1a2b0f;border:1px solid #2c4a17;padding:2px 8px;border-radius:999px}
+
+    .choices{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+    /* 記号（SVG）をはめるボタン */
+    .choice{
+      padding:10px;border:none;border-radius:12px;background:#0f172a;color:var(--ink);
+      cursor:pointer; display:grid; place-items:center; min-height:110px;
+      border:1px solid #1f2937;
+    }
+    .choice.correct{background:#14532d;border-color:#14532d}
+    .choice.wrong{background:#7f1d1d;border-color:#7f1d1d}
+    .choice:disabled{opacity:.9;cursor:default}
+    .svgBox{
+      width:120px;height:120px;display:grid;place-items:center;
+      background:#ffffff;border-radius:10px;border:1px solid #e5e7eb;
+    }
+    .svgBox img{width:100px;height:100px;object-fit:contain}
+    .svgBox .fb{color:#6b7280;font-weight:700}
+
+    /* 超大型の判定表示（◯/×）：ボタンに被らないよう上寄り */
+    #judge{
+      position:fixed; left:50%; top:28%; transform:translate(-50%,-50%);
+      font-size:clamp(72px,13vh,140px); font-weight:900; letter-spacing:.06em;
+      color:#111; text-shadow:0 0 2px #fff, 0 0 12px rgba(255,255,255,.9), 0 6px 18px rgba(0,0,0,.35);
+      opacity:0; pointer-events:none; z-index:9999; transition:opacity .22s ease-out;
+    }
+    #judge.ok{color:var(--ok)}  #judge.ng{color:var(--ng)}  #judge.show{opacity:1}
+
+    /* 設定ボタン＆モーダル（元版準拠） */
+    .controls{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;align-items:center}
+    .btn{padding:10px 12px;border:none;border-radius:10px;background:#1f2937;color:#e6edf3}
+    .btn.warn{color:#fca5a5;border:1px solid #7f1d1d}
+    .btn.ghost{background:#0b1220;border:1px solid #1f2937}
+
+    #settings{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55);z-index:9998}
+    #settings.show{display:grid}
+    .sheet{background:#0f172a;border:1px solid #1f2937;border-radius:16px;min-width:min(94vw,520px);padding:16px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0}
+    .row label{display:flex;gap:8px;align-items:center;font-size:14px;color:#e5e7eb;background:#111827;border:1px solid #1f2937;border-radius:999px;padding:8px 12px}
+    .row input{accent-color:#60a5fa;width:18px;height:18px}
+    .sheet .hd{font-weight:700;margin:0 0 6px 2px}
+
+    /* クリア画面（元版準拠） */
+    #finish{position:fixed;inset:0;display:none;place-items:center;z-index:10000;background:rgba(0,0,0,.6)}
+    #finish.show{display:grid}
+    .finishCard{background:#0f172a;border:1px solid #1f2937;border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.4);padding:22px;min-width:min(94vw,560px);text-align:center}
+    .big{font-size:clamp(28px,4.6vh,40px);margin:6px 0}
+    .rankLine{font-size:clamp(40px,7vh,56px);font-weight:900;margin:4px 0}
+    .meta{color:var(--muted);margin:6px 0 16px}
+    .finishBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+    .finishBtns button{padding:12px 14px;border:none;border-radius:12px;background:#1f2937;color:#e6edf3}
+
+    details#rank{max-width:620px;margin:0 auto;padding:8px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{border-bottom:1px solid #1f2937;padding:6px;text-align:left}
+    th{color:var(--muted);font-weight:600}
+  </style>
 </head>
 <body>
-<div id="wrap">
-  <h1>地図記号ドリル（逆バージョン）</h1>
+  <header>地図記号4択ドリル — 逆バージョン（名称→記号）</header>
+  <main>
+    <div class="wrap">
+      <div class="symbolBox">
+        <div id="qText">—</div>
+      </div>
 
-  <!-- 設定スイッチ -->
-  <div id="settings">
-    <label><input type="checkbox" id="forceCorrect"> 正解するまで進まない</label>
-    <label><input type="checkbox" id="reviewMode" checked> 復習モードあり</label>
+      <div class="bar">
+        <div><span id="qCounter">—</span> <span id="hint" class="tag" hidden>復習モード</span></div>
+        <div>進行 <b id="progress">0/0</b> ／ 正解率 <b id="acc">0%</b> ／ 時間 <b id="time">00:00</b></div>
+      </div>
+
+      <div id="choices" class="choices"></div>
+      <div class="controls">
+        <div style="display:flex;gap:10px">
+          <button id="restartBtn" class="btn warn">最初から</button>
+          <button id="preloadBtn" class="btn">画像再読込</button>
+        </div>
+        <button id="settingsBtn" class="btn ghost">⚙ 設定</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 判定表示（大きい◯×） -->
+  <div id="judge" aria-hidden="true">◯</div>
+
+  <!-- 設定モーダル（元版と同じ2スイッチ） -->
+  <div id="settings" role="dialog" aria-modal="true" aria-labelledby="stHd">
+    <div class="sheet">
+      <div class="hd" id="stHd">設定</div>
+      <div class="row">
+        <label><input type="checkbox" id="optRequireCorrect"> 正解するまで進まない</label>
+        <label><input type="checkbox" id="optReview" checked> 復習モードあり</label>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button id="closeSettings" class="btn">閉じる</button>
+      </div>
+    </div>
   </div>
 
-  <div id="question"></div>
-  <div class="options" id="options"></div>
-  <div id="judge" class="judge"></div>
-</div>
+  <!-- クリア画面 -->
+  <div id="finish">
+    <div class="finishCard">
+      <div class="big">🎉 全問正解！クリア</div>
+      <div id="finRank" class="rankLine">1位</div>
+      <div class="big">正解率 <b id="finAcc">100%</b> ／ 時間 <b id="finTime">00:00</b></div>
+      <div id="finGrade" class="rankLine">👑 神</div>
+      <div class="meta">（端末ローカルのランキングに記録しました）</div>
+      <div class="finishBtns">
+        <button id="againBtn" class="btn">もう一度</button>
+        <button id="showRankBtn" class="btn">ランキングを見る</button>
+      </div>
+    </div>
+  </div>
+
+  <details id="rank">
+    <summary>🏆 ローカルランキング（日時・正解率・時間を自動記録）</summary>
+    <table>
+      <thead><tr><th>#</th><th>日時</th><th>正解率</th><th>時間</th></tr></thead>
+      <tbody id="rankBody"></tbody>
+    </table>
+    <div style="margin-top:8px">
+      <button id="clearRankBtn" class="btn warn">ランキングを消去</button>
+    </div>
+  </details>
+
+  <footer>© 2025 Map Symbols Drill — SVG対応</footer>
 
 <script>
-const symbols = [
-  { name: "工場", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 200 200">
-      <circle cx="100" cy="100" r="40" stroke="black" stroke-width="4" fill="none"/>
-      <line x1="100" y1="20" x2="100" y2="50" stroke="black" stroke-width="4"/>
-      <line x1="100" y1="150" x2="100" y2="180" stroke="black" stroke-width="4"/>
-      <line x1="20" y1="100" x2="50" y2="100" stroke="black" stroke-width="4"/>
-      <line x1="150" y1="100" x2="180" y2="100" stroke="black" stroke-width="4"/>
-      <line x1="45" y1="45" x2="65" y2="65" stroke="black" stroke-width="4"/>
-      <line x1="155" y1="45" x2="135" y2="65" stroke="black" stroke-width="4"/>
-      <line x1="45" y1="155" x2="65" y2="135" stroke="black" stroke-width="4"/>
-      <line x1="155" y1="155" x2="135" y2="135" stroke="black" stroke-width="4"/>
-    </svg>` },
-  { name: "学校", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-      <rect x="10" y="10" width="40" height="40" stroke="black" stroke-width="4" fill="none"/>
-    </svg>` },
-  { name: "寺院", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-      <polygon points="30,5 55,55 5,55" stroke="black" stroke-width="4" fill="none"/>
-    </svg>` },
-  { name: "病院", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-      <circle cx="30" cy="30" r="20" stroke="black" stroke-width="4" fill="none"/>
-    </svg>` }
+"use strict";
+
+/* ====== 32種類（symbols/ のSVGファイル名は元版と同じ） ====== */
+const SYMBOLS = [
+  {id:'cityhall',      name:'市役所',           file:'cityhall.svg'},
+  {id:'townhall',      name:'町・村役場',       file:'townhall.svg'},
+  {id:'government',    name:'官公署',           file:'government.svg'},
+  {id:'police',        name:'警察署',           file:'police.svg'},
+  {id:'koban',         name:'交番',             file:'koban.svg'},
+  {id:'postoffice',    name:'郵便局',           file:'postoffice.svg'},
+  {id:'firestation',   name:'消防署',           file:'firestation.svg'},
+  {id:'school',        name:'小・中学校',       file:'school.svg'},
+  {id:'highschool',    name:'高等学校',         file:'highschool.svg'},
+  {id:'hospital',      name:'病院',             file:'hospital.svg'},
+  {id:'healthcenter',  name:'保健所',           file:'healthcenter.svg'},
+  {id:'temple',        name:'寺院',             file:'temple.svg'},
+  {id:'shrine',        name:'神社',             file:'shrine.svg'},
+  {id:'factory',       name:'工場',             file:'factory.svg'},
+  {id:'power_substation', name:'発電所・変電所', file:'power_substation.svg'},
+  {id:'library',       name:'図書館',           file:'library.svg'},
+
+  {id:'paddy',         name:'水田',             file:'paddy.svg'},
+  {id:'field',         name:'畑',               file:'field.svg'},
+  {id:'orchard',       name:'果樹園',           file:'orchard.svg'},
+  {id:'teafield',      name:'茶畑',             file:'teafield.svg'},
+  {id:'mulberry',      name:'桑畑',             file:'mulberry.svg'},
+  {id:'broadleaf',     name:'広葉樹林',         file:'broadleaf.svg'},
+  {id:'conifer',       name:'針葉樹林',         file:'conifer.svg'},
+  {id:'wasteland',     name:'荒地',             file:'wasteland.svg'},
+  {id:'triangulation', name:'三角点',           file:'triangulation.svg'},
+  {id:'benchmark',     name:'水準点',           file:'benchmark.svg'},
+  {id:'museum',        name:'博物館',           file:'museum.svg'},
+  {id:'nursing_home',  name:'老人ホーム',       file:'nursing_home.svg'},
+  {id:'castle_ruins',  name:'城跡',             file:'castle_ruins.svg'},
+  {id:'lighthouse',    name:'灯台',             file:'lighthouse.svg'},
+  {id:'buildings',     name:'建物・住宅',       file:'buildings.svg'},
+  {id:'urban',         name:'市街地',           file:'urban.svg'},
 ];
 
-let currentQuestion = null;
-let reviewQueue = [];
+const IMG_BASE = 'symbols/';
+const ALL_NAMES = SYMBOLS.map(s=>s.name);
 
-// 問題を出題
-function nextQuestion() {
-  if (reviewQueue.length > 0 && document.getElementById("reviewMode").checked) {
-    currentQuestion = reviewQueue.shift();
-  } else {
-    currentQuestion = symbols[Math.floor(Math.random() * symbols.length)];
-  }
-  document.getElementById("question").innerText = `問題：「${currentQuestion.name}」の記号はどれ？`;
+// ===== util =====
+const $ = s => document.querySelector(s);
+const shuffle = a => a.map(x=>[Math.random(),x]).sort((m,n)=>m[0]-n[0]).map(x=>x[1]);
+const two = n => String(n).padStart(2,"0");
+const fmtTime = ms => { const t=Math.round(ms/1000); const m=Math.floor(t/60), s=t%60; return `${two(m)}:${two(s)}`; };
 
-  const optionsEl = document.getElementById("options");
-  optionsEl.innerHTML = "";
-
-  // 正解＋ランダム選択肢
-  let choices = [currentQuestion];
-  while (choices.length < 4) {
-    let s = symbols[Math.floor(Math.random() * symbols.length)];
-    if (!choices.includes(s)) choices.push(s);
-  }
-  choices = choices.sort(() => Math.random() - 0.5);
-
-  choices.forEach(s => {
-    const btn = document.createElement("div");
-    btn.className = "option";
-    btn.innerHTML = s.svg;
-    btn.onclick = () => checkAnswer(s);
-    optionsEl.appendChild(btn);
+// ===== ranking / options =====
+const LS_KEY   = "mapdrill_rank_svg_rev_v1";
+const OPTS_KEY = "mapdrill_opts_v2";
+const loadRank = () => { try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch{ return []; } };
+const saveRank = (list) => localStorage.setItem(LS_KEY, JSON.stringify(list));
+function pushRankWithReturn(acc,ms){
+  const list = loadRank();
+  const entry = {at:Date.now(), acc, ms};
+  list.push(entry);
+  list.sort((a,b)=> (b.acc-a.acc) || (a.ms-b.ms));
+  const rankIndex = list.indexOf(entry);
+  saveRank(list.slice(0,100));
+  renderRank();
+  return {rank: rankIndex+1, total: list.length, entry};
+}
+function renderRank(){
+  const tb=$("#rankBody"); if(!tb) return;
+  tb.innerHTML="";
+  loadRank().forEach((r,i)=>{
+    const d=new Date(r.at);
+    const when = `${d.getFullYear()}/${two(d.getMonth()+1)}/${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`;
+    const tr=document.createElement("tr");
+    tr.innerHTML = `<td>${i+1}</td><td>${when}</td><td>${Math.round(r.acc*100)}%</td><td>${fmtTime(r.ms)}</td>`;
+    tb.appendChild(tr);
   });
 }
 
-function checkAnswer(selected) {
-  const judge = document.getElementById("judge");
-  const forceCorrect = document.getElementById("forceCorrect").checked;
+// オプション（デフォ：正解不要=OFF、復習あり=ON）
+let requireCorrect = false;
+let reviewEnabled = true;
+function loadOpts(){
+  try{
+    const o = JSON.parse(localStorage.getItem(OPTS_KEY)||"{}");
+    if(typeof o.requireCorrect === 'boolean') requireCorrect = o.requireCorrect;
+    if(typeof o.reviewEnabled === 'boolean') reviewEnabled = o.reviewEnabled;
+  }catch{}
+  $("#optRequireCorrect").checked = requireCorrect;
+  $("#optReview").checked = reviewEnabled;
+}
+function saveOpts(){ localStorage.setItem(OPTS_KEY, JSON.stringify({requireCorrect, reviewEnabled})); }
+$("#optRequireCorrect")?.addEventListener('change', e=>{ requireCorrect = e.target.checked; saveOpts(); });
+$("#optReview")?.addEventListener('change', e=>{ reviewEnabled = e.target.checked; saveOpts(); });
 
-  if (selected.name === currentQuestion.name) {
-    judge.innerText = "◯";
-    judge.style.color = "lime";
-    if (navigator.vibrate) navigator.vibrate(100);
-    judge.style.display = "block";
-    setTimeout(() => { judge.style.display = "none"; }, 800);
-    if (!forceCorrect) setTimeout(nextQuestion, 900);
-    else setTimeout(nextQuestion, 900);
-  } else {
-    judge.innerText = "×";
-    judge.style.color = "red";
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-    judge.style.display = "block";
-    setTimeout(() => { judge.style.display = "none"; }, 800);
-    if (document.getElementById("reviewMode").checked) {
-      reviewQueue.push(currentQuestion);
+// ===== state =====
+let queue=[], idx=0, attempts=0, correctClicks=0, startedAt=0;
+let wrongSet = new Set();
+let stage = 'first';
+
+// ===== images =====
+function preloadImages(){ SYMBOLS.forEach(s=>{ const img=new Image(); img.src=IMG_BASE+s.file; }); }
+
+// ===== quiz =====
+function start(){
+  queue = shuffle([...SYMBOLS]);
+  idx=0; attempts=0; correctClicks=0; startedAt=performance.now();
+  wrongSet.clear(); stage='first';
+  $("#hint").hidden = true;
+  next();
+}
+function pickChoices(answerId){
+  const pool = SYMBOLS.filter(s=>s.id!==answerId);
+  return shuffle([ SYMBOLS.find(s=>s.id===answerId), ...shuffle(pool).slice(0,3) ]);
+}
+function makeChoiceButton(sym){
+  const btn = document.createElement('button');
+  btn.className = 'choice';
+  const box = document.createElement('div');
+  box.className = 'svgBox';
+  const img = new Image();
+  img.alt = sym.name;
+  img.src = IMG_BASE + sym.file;          // 同一端末でのキャッシュあり
+  img.onerror = ()=>{ box.innerHTML = `<div class="fb">？</div>`; };
+  box.appendChild(img);
+  btn.appendChild(box);
+  return {btn, img};
+}
+function next(){
+  if(idx >= queue.length){
+    if(reviewEnabled && stage==='first' && wrongSet.size>0){
+      queue = shuffle(SYMBOLS.filter(s=>wrongSet.has(s.id)));
+      wrongSet.clear(); idx=0; stage='review'; $("#hint").hidden=false;
+    }else if(reviewEnabled && stage==='review' && wrongSet.size>0){
+      queue = shuffle(SYMBOLS.filter(s=>wrongSet.has(s.id)));
+      wrongSet.clear(); idx=0;
+    }else{
+      return finish();
     }
-    if (!forceCorrect) setTimeout(nextQuestion, 900);
   }
+
+  const sym = queue[idx];
+  $("#qText").textContent = `「${sym.name}」の記号はどれ？`;
+  $("#qCounter").textContent = `問題 ${idx+1} / ${queue.length}`;
+
+  const wrap = $("#choices"); wrap.innerHTML = "";
+  const options = pickChoices(sym.id);
+  options.forEach(o=>{
+    const {btn} = makeChoiceButton(o);
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); answer(o, sym, btn); }, {passive:true});
+    wrap.appendChild(btn);
+  });
+
+  $("#progress").textContent = `${idx+1}/${queue.length}`;
+  $("#acc").textContent = attempts ? `${Math.round((correctClicks/attempts)*100)}%` : "0%";
 }
 
-nextQuestion();
+function showJudge(isOK){
+  const j=$("#judge");
+  j.textContent = isOK ? "◯" : "×";
+  j.classList.remove('ok','ng','show');
+  j.classList.add(isOK?'ok':'ng');
+  void j.offsetWidth; // reflow
+  j.classList.add('show');
+  setTimeout(()=> j.classList.remove('show'), 950);
+}
+
+function answer(selected, answerSym, btnEl){
+  attempts++;
+  const ok = (selected.id === answerSym.id);
+
+  // 振動（ユーザー操作直後）
+  try{ navigator.vibrate?.( ok ? 28 : [14,60,18] ); }catch{}
+
+  if(ok){
+    correctClicks++;
+    btnEl.classList.add('correct');
+    document.querySelectorAll('.choice').forEach(b=>b.disabled=true);
+    showJudge(true);
+    setTimeout(()=>{ idx++; next(); }, 420);
+  }else{
+    if(reviewEnabled) wrongSet.add(answerSym.id);
+    btnEl.classList.add('wrong');
+    btnEl.disabled = true;
+    showJudge(false);
+    if(!requireCorrect){
+      document.querySelectorAll('.choice').forEach(b=>b.disabled=true);
+      setTimeout(()=>{ idx++; next(); }, 520);
+    }
+  }
+  $("#acc").textContent = attempts ? `${Math.round((correctClicks/attempts)*100)}%` : "0%";
+}
+
+// ===== finish =====
+function finish(){
+  const ms = performance.now()-startedAt;
+  const acc = attempts? (correctClicks/attempts) : 0;
+  const res = pushRankWithReturn(acc, ms);
+
+  $("#finRank").textContent = `${res.rank}位`;
+  const pct = Math.round(acc*100);
+  $("#finAcc").textContent = `${pct}%`;
+  $("#finTime").textContent = fmtTime(ms);
+  $("#finGrade").textContent =
+    (pct===100)?'👑 神':(pct>=80?'🦁 王者':(pct>=60?'🐴 人間':(pct>=50?'🐢 亀':'🐛 虫')));
+  $("#finish").classList.add("show");
+}
+
+// ===== events =====
+$("#restartBtn").addEventListener('click', ()=>{ if(confirm('最初からやり直しますか？')){ $("#finish").classList.remove('show'); start(); }});
+$("#againBtn").addEventListener('click', ()=>{ $("#finish").classList.remove('show'); start(); });
+$("#showRankBtn").addEventListener('click', ()=>{ $("#finish").classList.remove('show'); document.querySelector('#rank').open = true; });
+$("#clearRankBtn").addEventListener('click', ()=>{ if(confirm('ランキングを消去しますか？')){ localStorage.removeItem(LS_KEY); renderRank(); }});
+$("#preloadBtn").addEventListener('click', preloadImages);
+$("#settingsBtn").addEventListener('click', ()=> $("#settings").classList.add('show'));
+$("#closeSettings").addEventListener('click', ()=> $("#settings").classList.remove('show'));
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') $("#settings").classList.remove('show'); });
+
+// タイマー
+setInterval(()=>{ const playing=!$("#finish").classList.contains('show'); if(playing){ $("#time").textContent = fmtTime(performance.now()-startedAt);} }, 1000);
+
+// 起動
+document.addEventListener("DOMContentLoaded", ()=>{ renderRank(); preloadImages(); loadOpts(); start(); });
 </script>
 </body>
 </html>
