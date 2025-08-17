@@ -1,71 +1,123 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>地図記号ドリル（逆バージョン）</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; background: #0b1220; color: white; }
-    #question { font-size: 24px; margin: 20px; }
-    .options { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-    .option {
-      width: 100px; height: 100px; border: 2px solid #ccc; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      background: white; cursor: pointer;
-    }
-    .judge {
-      font-size: 64px; font-weight: bold; position: absolute; top: 20px; left: 50%;
-      transform: translateX(-50%); display: none;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>地図記号ドリル（逆バージョン）</title>
+<style>
+  body { font-family: sans-serif; text-align: center; background: #0b1220; color: white; }
+  #wrap { max-width: 600px; margin: auto; }
+  #question { font-size: 22px; margin: 20px; }
+  .options { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+  .option {
+    width: 100px; height: 100px; border: 2px solid #ccc; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: white; cursor: pointer;
+  }
+  .judge {
+    font-size: 80px; font-weight: bold; position: absolute; top: 10%; left: 50%;
+    transform: translateX(-50%); display: none; z-index: 10;
+  }
+  #settings { margin: 15px; font-size: 14px; }
+  label { margin: 0 10px; }
+</style>
 </head>
 <body>
+<div id="wrap">
   <h1>地図記号ドリル（逆バージョン）</h1>
-  <div id="question">問題：工場の記号はどれ？</div>
-  <div class="options">
-    <!-- 選択肢1 正解：工場 -->
-    <div class="option" onclick="checkAnswer(true)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 200 200">
-        <circle cx="100" cy="100" r="40" stroke="black" stroke-width="4" fill="none"/>
-        <line x1="100" y1="20" x2="100" y2="50" stroke="black" stroke-width="4"/>
-        <line x1="100" y1="150" x2="100" y2="180" stroke="black" stroke-width="4"/>
-        <line x1="20" y1="100" x2="50" y2="100" stroke="black" stroke-width="4"/>
-        <line x1="150" y1="100" x2="180" y2="100" stroke="black" stroke-width="4"/>
-        <line x1="45" y1="45" x2="65" y2="65" stroke="black" stroke-width="4"/>
-        <line x1="155" y1="45" x2="135" y2="65" stroke="black" stroke-width="4"/>
-        <line x1="45" y1="155" x2="65" y2="135" stroke="black" stroke-width="4"/>
-        <line x1="155" y1="155" x2="135" y2="135" stroke="black" stroke-width="4"/>
-      </svg>
-    </div>
-    <!-- 選択肢2 -->
-    <div class="option" onclick="checkAnswer(false)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-        <rect x="10" y="10" width="40" height="40" stroke="black" stroke-width="4" fill="none"/>
-      </svg>
-    </div>
-    <!-- 選択肢3 -->
-    <div class="option" onclick="checkAnswer(false)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-        <polygon points="30,5 55,55 5,55" stroke="black" stroke-width="4" fill="none"/>
-      </svg>
-    </div>
-    <!-- 選択肢4 -->
-    <div class="option" onclick="checkAnswer(false)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
-        <circle cx="30" cy="30" r="20" stroke="black" stroke-width="4" fill="none"/>
-      </svg>
-    </div>
+
+  <!-- 設定スイッチ -->
+  <div id="settings">
+    <label><input type="checkbox" id="forceCorrect"> 正解するまで進まない</label>
+    <label><input type="checkbox" id="reviewMode" checked> 復習モードあり</label>
   </div>
 
+  <div id="question"></div>
+  <div class="options" id="options"></div>
   <div id="judge" class="judge"></div>
+</div>
 
-  <script>
-    function checkAnswer(correct) {
-      const judge = document.getElementById("judge");
-      judge.innerText = correct ? "◯" : "×";
-      judge.style.color = correct ? "lime" : "red";
-      judge.style.display = "block";
-      setTimeout(() => { judge.style.display = "none"; }, 800);
+<script>
+const symbols = [
+  { name: "工場", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="40" stroke="black" stroke-width="4" fill="none"/>
+      <line x1="100" y1="20" x2="100" y2="50" stroke="black" stroke-width="4"/>
+      <line x1="100" y1="150" x2="100" y2="180" stroke="black" stroke-width="4"/>
+      <line x1="20" y1="100" x2="50" y2="100" stroke="black" stroke-width="4"/>
+      <line x1="150" y1="100" x2="180" y2="100" stroke="black" stroke-width="4"/>
+      <line x1="45" y1="45" x2="65" y2="65" stroke="black" stroke-width="4"/>
+      <line x1="155" y1="45" x2="135" y2="65" stroke="black" stroke-width="4"/>
+      <line x1="45" y1="155" x2="65" y2="135" stroke="black" stroke-width="4"/>
+      <line x1="155" y1="155" x2="135" y2="135" stroke="black" stroke-width="4"/>
+    </svg>` },
+  { name: "学校", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+      <rect x="10" y="10" width="40" height="40" stroke="black" stroke-width="4" fill="none"/>
+    </svg>` },
+  { name: "寺院", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+      <polygon points="30,5 55,55 5,55" stroke="black" stroke-width="4" fill="none"/>
+    </svg>` },
+  { name: "病院", svg: `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+      <circle cx="30" cy="30" r="20" stroke="black" stroke-width="4" fill="none"/>
+    </svg>` }
+];
+
+let currentQuestion = null;
+let reviewQueue = [];
+
+// 問題を出題
+function nextQuestion() {
+  if (reviewQueue.length > 0 && document.getElementById("reviewMode").checked) {
+    currentQuestion = reviewQueue.shift();
+  } else {
+    currentQuestion = symbols[Math.floor(Math.random() * symbols.length)];
+  }
+  document.getElementById("question").innerText = `問題：「${currentQuestion.name}」の記号はどれ？`;
+
+  const optionsEl = document.getElementById("options");
+  optionsEl.innerHTML = "";
+
+  // 正解＋ランダム選択肢
+  let choices = [currentQuestion];
+  while (choices.length < 4) {
+    let s = symbols[Math.floor(Math.random() * symbols.length)];
+    if (!choices.includes(s)) choices.push(s);
+  }
+  choices = choices.sort(() => Math.random() - 0.5);
+
+  choices.forEach(s => {
+    const btn = document.createElement("div");
+    btn.className = "option";
+    btn.innerHTML = s.svg;
+    btn.onclick = () => checkAnswer(s);
+    optionsEl.appendChild(btn);
+  });
+}
+
+function checkAnswer(selected) {
+  const judge = document.getElementById("judge");
+  const forceCorrect = document.getElementById("forceCorrect").checked;
+
+  if (selected.name === currentQuestion.name) {
+    judge.innerText = "◯";
+    judge.style.color = "lime";
+    if (navigator.vibrate) navigator.vibrate(100);
+    judge.style.display = "block";
+    setTimeout(() => { judge.style.display = "none"; }, 800);
+    if (!forceCorrect) setTimeout(nextQuestion, 900);
+    else setTimeout(nextQuestion, 900);
+  } else {
+    judge.innerText = "×";
+    judge.style.color = "red";
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    judge.style.display = "block";
+    setTimeout(() => { judge.style.display = "none"; }, 800);
+    if (document.getElementById("reviewMode").checked) {
+      reviewQueue.push(currentQuestion);
     }
-  </script>
+    if (!forceCorrect) setTimeout(nextQuestion, 900);
+  }
+}
+
+nextQuestion();
+</script>
 </body>
 </html>
