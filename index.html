@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>地図記号ドリル（逆バージョン）</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #0b1220; color: white; }
+    #question { font-size: 24px; margin: 20px; }
+    .options { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+    .option {
+      width: 100px; height: 100px; border: 2px solid #ccc; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: white; cursor: pointer;
+    }
+    .judge {
+      font-size: 64px; font-weight: bold; position: absolute; top: 20px; left: 50%;
+      transform: translateX(-50%); display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>地図記号ドリル（逆バージョン）</h1>
+  <div id="question">問題：工場の記号はどれ？</div>
+  <div class="options">
+    <!-- 選択肢1 正解：工場 -->
+    <div class="option" onclick="checkAnswer(true)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="40" stroke="black" stroke-width="4" fill="none"/>
+        <line x1="100" y1="20" x2="100" y2="50" stroke="black" stroke-width="4"/>
+        <line x1="100" y1="150" x2="100" y2="180" stroke="black" stroke-width="4"/>
+        <line x1="20" y1="100" x2="50" y2="100" stroke="black" stroke-width="4"/>
+        <line x1="150" y1="100" x2="180" y2="100" stroke="black" stroke-width="4"/>
+        <line x1="45" y1="45" x2="65" y2="65" stroke="black" stroke-width="4"/>
+        <line x1="155" y1="45" x2="135" y2="65" stroke="black" stroke-width="4"/>
+        <line x1="45" y1="155" x2="65" y2="135" stroke="black" stroke-width="4"/>
+        <line x1="155" y1="155" x2="135" y2="135" stroke="black" stroke-width="4"/>
+      </svg>
+    </div>
+    <!-- 選択肢2 -->
+    <div class="option" onclick="checkAnswer(false)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+        <rect x="10" y="10" width="40" height="40" stroke="black" stroke-width="4" fill="none"/>
+      </svg>
+    </div>
+    <!-- 選択肢3 -->
+    <div class="option" onclick="checkAnswer(false)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+        <polygon points="30,5 55,55 5,55" stroke="black" stroke-width="4" fill="none"/>
+      </svg>
+    </div>
+    <!-- 選択肢4 -->
+    <div class="option" onclick="checkAnswer(false)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+        <circle cx="30" cy="30" r="20" stroke="black" stroke-width="4" fill="none"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="judge" class="judge"></div>
+
+  <script>
+    function checkAnswer(correct) {
+      const judge = document.getElementById("judge");
+      judge.innerText = correct ? "◯" : "×";
+      judge.style.color = correct ? "lime" : "red";
+      judge.style.display = "block";
+      setTimeout(() => { judge.style.display = "none"; }, 800);
+    }
+  </script>
+</body>
+</html>
